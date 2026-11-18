@@ -55,6 +55,9 @@ header.top{background:linear-gradient(160deg,var(--blue) 0%,#2c63f0 60%,#4b7cff 
 .it .n b{display:block;font-size:15px}
 .it .n span{font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .it .a{font-weight:800;font-variant-numeric:tabular-nums}
+.list .it{cursor:pointer}
+.it .del{background:var(--bad);color:#fff;font-weight:800;font-size:13px;padding:8px 12px;border-radius:10px;flex:none}
+#dayLbl{user-select:none;-webkit-user-select:none;cursor:default}
 .tag{font-size:11px;font-weight:800;color:var(--bad);background:#ffe9ea;padding:2px 7px;border-radius:99px;margin-left:6px;vertical-align:2px}
 nav.tabs{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:5}
 nav.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);align-items:end}
@@ -157,7 +160,7 @@ const BASE_Q = [
 const KEY = 'p30_v1';
 let S = load();
 let tab = 'home';
-let draft = null, quizState = null;
+let draft = null, quizState = null, armed = null;
 
 function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || null; }catch(e){ return null; } }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
@@ -186,7 +189,7 @@ function header(){
   const spent = S.ex.reduce((a,e)=>a+e.a,0);
   return `<header class="top">
     <div class="row"><div class="brand">PROVOCAREA 30 DE ZILE</div><div class="pill">${S.cls}</div></div>
-    <div class="day">Ziua ${n} din 30 · săptămâna ${week()}</div>
+    <div class="day" id="dayLbl">Ziua ${n} din 30 · săptămâna ${week()}</div>
     <div class="big">${lei(spent)}</div>
     <div class="sub">cheltuiți până acum · ai notat în ${days.size} ${days.size===1?'zi':'zile'}</div>
     <div class="prog"><i style="width:${n/30*100}%"></i></div>
@@ -230,9 +233,9 @@ function home(){
 function item(e){
   const c=catOf(e.c); const d=new Date(e.d+'T12:00:00');
   const nday = Math.round((d-new Date(S.start+'T12:00:00'))/864e5)+1;
-  return `<div class="it"><div class="ic" style="background:${c.c}1f">${c.e}</div>
+  return `<div class="it" data-it="${e.ts}"><div class="ic" style="background:${c.c}1f">${c.e}</div>
     <div class="n"><b>${c.short||c.n}${e.r?'<span class="tag">REGRET</span>':''}</b><span>Ziua ${nday}${e.note?' · '+esc(e.note):''}</span></div>
-    <div class="a">${lei(e.a)}</div></div>`;
+    ${armed===e.ts ? `<button class="del" data-del="${e.ts}">Șterge</button>` : `<div class="a">${lei(e.a)}</div>`}</div>`;
 }
 function esc(s){ return String(s).replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 
@@ -342,7 +345,20 @@ function bindOnb(){
 function bindPage(){
   document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(b.dataset.act));
   document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{ tab=b.dataset.go; render(); scrollTo(0,0); });
+  document.querySelectorAll('[data-it]').forEach(b=>b.onclick=()=>{ const ts=+b.dataset.it; armed = armed===ts ? null : ts; render(); });
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=ev=>{
+    ev.stopPropagation(); const ts=+b.dataset.del;
+    S.ex = S.ex.filter(e=>e.ts!==ts); armed=null; save(); render(); toast('Cheltuială ștearsă');
+  });
+  const dl=$('#dayLbl'); if(dl) dl.onclick=()=>{
+    const now=Date.now(); skipTaps = now-skipLast<500 ? skipTaps+1 : 1; skipLast=now;
+    if(skipTaps<3) return; skipTaps=0;
+    if(dayNum()>=30){ toast('Ești deja în ziua 30'); return; }
+    const s=new Date(S.start+'T12:00:00'); s.setDate(s.getDate()-1); S.start=dkey(s);
+    save(); render(); toast('Sărit la ziua '+dayNum());
+  };
 }
+let skipTaps=0, skipLast=0;
 function act(a){
   if(a==='add') openAdd();
   if(a==='zero'){ const t=dkey(today()); if(!S.zero.includes(t)) S.zero.push(t); save(); render(); toast('Zi fără cheltuieli notată ✓'); }
