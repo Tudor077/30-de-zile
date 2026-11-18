@@ -172,7 +172,8 @@ function dayNum(){ if(!S) return 1; const s=new Date(S.start+'T12:00:00'); retur
 function dateOfDay(n){ const s=new Date(S.start+'T12:00:00'); s.setDate(s.getDate()+n-1); return dkey(s); }
 function week(){ return Math.min(4, Math.ceil(dayNum()/7)); }
 function catOf(id){ return CATS.find(c=>c.id===id) || CATS[5]; }
-function loggedDays(){ const set=new Set(S.ex.map(e=>e.d)); S.zero.forEach(z=>set.add(z)); return set; }
+function isZero(dk){ if(S.ex.some(e=>e.d===dk)) return false; return S.zero.includes(dk) || (dk>=S.start && dk<dkey(today())); }
+function loggedDays(){ const set=new Set(S.ex.map(e=>e.d)); S.zero.forEach(z=>set.add(z)); for(let i=1;i<dayNum();i++){ const dk=dateOfDay(i); if(isZero(dk)) set.add(dk); } return set; }
 function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast.h); toast.h=setTimeout(()=>el.classList.remove('show'),1800); }
 
 function render(){
@@ -201,7 +202,7 @@ function home(){
   const todayEx = S.ex.filter(e=>e.d===t);
   const todaySum = todayEx.reduce((a,e)=>a+e.a,0);
   const zeroToday = S.zero.includes(t);
-  let cells=''; for(let i=1;i<=30;i++){ const dk=dateOfDay(i); const z=S.zero.includes(dk)&&!S.ex.some(e=>e.d===dk); cells+=`<b class="${z?'zero':(days.has(dk)?'on':'')} ${i===n?'today':''}"></b>`; }
+  let cells=''; for(let i=1;i<=30;i++){ const dk=dateOfDay(i); const z=isZero(dk); cells+=`<b class="${z?'zero':(days.has(dk)?'on':'')} ${i===n?'today':''}"></b>`; }
   const c = CHAL[week()-1];
   const recent = [...S.ex].sort((a,b)=>b.ts-a.ts).slice(0,6);
   return `
