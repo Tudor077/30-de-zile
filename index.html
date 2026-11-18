@@ -167,7 +167,7 @@ function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} 
 const $ = s => document.querySelector(s);
 const lei = n => (Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') + ' lei';
 const dkey = d => d.toISOString().slice(0,10);
-const today = () => { const d=new Date(); d.setHours(12,0,0,0); return d; };
+const today = () => { const d=new Date(); d.setHours(12,0,0,0); if(S&&S.off) d.setDate(d.getDate()+S.off); return d; };
 function dayNum(){ if(!S) return 1; const s=new Date(S.start+'T12:00:00'); return Math.min(30, Math.max(1, Math.round((today()-s)/864e5)+1)); }
 function dateOfDay(n){ const s=new Date(S.start+'T12:00:00'); s.setDate(s.getDate()+n-1); return dkey(s); }
 function week(){ return Math.min(4, Math.ceil(dayNum()/7)); }
@@ -354,7 +354,7 @@ function bindPage(){
     const now=Date.now(); skipTaps = now-skipLast<500 ? skipTaps+1 : 1; skipLast=now;
     if(skipTaps<3) return; skipTaps=0;
     if(dayNum()>=30){ toast('Ești deja în ziua 30'); return; }
-    const s=new Date(S.start+'T12:00:00'); s.setDate(s.getDate()-1); S.start=dkey(s);
+    S.off=(S.off||0)+1; armed=null;
     save(); render(); toast('Sărit la ziua '+dayNum());
   };
 }
@@ -449,7 +449,7 @@ function loadDemo(){
   ];
   const ex = D.map(([d,a,c,note,reg],k)=>{ const dt=new Date(start); dt.setDate(dt.getDate()+d-1); return {a,c,note,r:!!reg,d:dkey(dt),ts:dt.getTime()+k*1000}; });
   const zero = [10,12].map(d=>{ const dt=new Date(start); dt.setDate(dt.getDate()+d-1); return dkey(dt); });
-  S = {onb:true, cls:S?.cls||'a X-a B', start:dkey(start), base:S?.base||{know:2,save:2,budget:2}, ex, zero, quiz:null};
+  S = {onb:true, cls:S?.cls||'a X-a B', start:dkey(start), base:S?.base||{know:2,save:2,budget:2}, ex, zero, quiz:null, off:S?.off||0};
   save(); tab='home'; render(); scrollTo(0,0); toast('Date demo: ziua 18');
 }
 
