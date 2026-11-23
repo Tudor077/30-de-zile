@@ -57,7 +57,8 @@ header.top{background:linear-gradient(160deg,var(--blue) 0%,#2c63f0 60%,#4b7cff 
 .it .a{font-weight:800;font-variant-numeric:tabular-nums}
 .list .it{cursor:pointer}
 .it .del{background:var(--bad);color:#fff;font-weight:800;font-size:13px;padding:8px 12px;border-radius:10px;flex:none}
-#dayLbl{user-select:none;-webkit-user-select:none;cursor:default}
+#clsPill{touch-action:manipulation}
+#dayLbl,#clsPill{user-select:none;-webkit-user-select:none;cursor:default}
 .tag{font-size:11px;font-weight:800;color:var(--bad);background:#ffe9ea;padding:2px 7px;border-radius:99px;margin-left:6px;vertical-align:2px}
 nav.tabs{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:5}
 nav.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);align-items:end}
@@ -193,7 +194,7 @@ function header(){
   const n=dayNum(), days=loggedDays();
   const spent = S.ex.reduce((a,e)=>a+e.a,0);
   return `<header class="top">
-    <div class="row"><div class="brand">PROVOCAREA 30 DE ZILE</div><div class="pill">${S.cls}</div></div>
+    <div class="row"><div class="brand">PROVOCAREA 30 DE ZILE</div><div class="pill" id="clsPill">${S.cls}</div></div>
     <div class="day" id="dayLbl">Ziua ${n} din 30 · săptămâna ${week()}</div>
     <div class="big">${lei(spent)}</div>
     <div class="sub">cheltuiți până acum · ai notat în ${days.size} ${days.size===1?'zi':'zile'}</div>
@@ -317,6 +318,51 @@ function editScore(el,id){
   inp.onkeydown=ev=>{ if(ev.key==='Enter') inp.blur(); if(ev.key==='Escape') finish(false); };
   inp.focus(); inp.select();
 }
+const SIM_EX = [['food','covrig',4,7],['food','sandviș',10,16],['food','shaorma',24,30],['food','automat',5,10],['transport','bilet autobuz',3,6],['out','bubble tea',12,18],['out','film la mall',28,38],['games','skin în joc',15,35],['clothes','tricou',35,60],['other','rechizite',6,15]];
+const rnd = (a,b) => a+Math.floor(Math.random()*(b-a+1));
+function simDay(){
+  if(dayNum()>=30){ toast('Ești deja în ziua 30'); return; }
+  const real = Math.round(loggedDays().size/dayNum()*100);
+  const rows = ranking(real).map(r=>({...r}));
+  if(!S.sim && S.scores?.me==null){
+    const pos = S.order ? rows.findIndex(r=>r.me) : rows.length-1;
+    const me = rows.splice(rows.findIndex(r=>r.me),1)[0];
+    const vals = RIVALS.map(r=>S.scores?.[r.id] ?? r.s).sort((a,b)=>b-a);
+    rows.forEach((r,i)=>r.s=vals[i]);
+    me.s = pos<vals.length ? Math.min(99,vals[pos]+1) : Math.max(1,vals[pos-1]-6);
+    rows.splice(pos,0,me);
+  }
+  if(!S.sim) S.sim={left:rnd(3,4)};
+  S.off=(S.off||0)+1; armed=null;
+  let m = rows.findIndex(r=>r.me);
+  const me = rows[m];
+  if(m>0 && S.sim.left<=1){
+    const up=rows[m-1];
+    me.s = Math.min(99, Math.max(me.s+1, up.s+1));
+    up.s = Math.min(up.s, me.s-1);
+    rows[m-1]=me; rows[m]=up; m--;
+    S.sim.left=rnd(3,4);
+  } else if(m>0){
+    const gap=rows[m-1].s-me.s-1;
+    me.s = Math.max(me.s, Math.min(98, me.s+Math.max(1, Math.round(gap/S.sim.left))));
+    S.sim.left--;
+  } else me.s = Math.min(99, me.s+(Math.random()<.6?1:0));
+  rows.forEach((r,i)=>{ if(r.me) return; const v=r.s+rnd(-1,1);
+    if(v<(i?rows[i-1].s:100) && v>(i<rows.length-1?rows[i+1].s:0)) r.s=v; });
+  for(let i=m-1;i>=0;i--) rows[i].s=Math.min(100, Math.max(rows[i].s, rows[i+1].s+1));
+  for(let i=m+1;i<rows.length;i++) rows[i].s=Math.max(0, Math.min(rows[i].s, rows[i-1].s-1));
+  S.scores=Object.fromEntries(rows.map(r=>[r.id,r.s]));
+  S.order=rows.map(r=>r.id);
+  const d=dkey(today()), n=Math.random()<.2?0:rnd(1,2);
+  if(!S.ex.some(e=>e.d===d)){
+    let ts=Math.max(Date.now(), ...S.ex.map(e=>e.ts));
+    for(let i=0;i<n;i++){ const [c,note,a,b]=SIM_EX[rnd(0,SIM_EX.length-1)];
+      S.ex.push({a:rnd(a,b), c, note, r:(c==='games'||c==='out')&&Math.random()<.25, d, ts:++ts}); }
+    if(!n && !S.zero.includes(d)) S.zero.push(d);
+  }
+  save(); render();
+}
+let pillLast=0;
 let scTap=null;
 let panel=false, lbTaps=0, lbLast=0, drag=null, hold=null;
 function lb(){
@@ -401,6 +447,9 @@ function bindPage(){
     const id=el.parentNode.dataset.row, now=Date.now();
     if(scTap && scTap.id===id && now-scTap.t<450){ scTap=null; cancelHold(); editScore(el,id); } else scTap={id,t:now};
   });
+  const cp=$('#clsPill'); if(cp) cp.onclick=()=>{
+    const now=Date.now(); if(now-pillLast<500){ pillLast=0; simDay(); } else pillLast=now;
+  };
   const dl=$('#dayLbl'); if(dl) dl.onclick=()=>{
     const now=Date.now(); skipTaps = now-skipLast<500 ? skipTaps+1 : 1; skipLast=now;
     if(skipTaps<3) return; skipTaps=0;
@@ -525,7 +574,7 @@ function loadDemo(){
   ];
   const ex = D.map(([d,a,c,note,reg],k)=>{ const dt=new Date(start); dt.setDate(dt.getDate()+d-1); return {a,c,note,r:!!reg,d:dkey(dt),ts:dt.getTime()+k*1000}; });
   const zero = [10,12].map(d=>{ const dt=new Date(start); dt.setDate(dt.getDate()+d-1); return dkey(dt); });
-  S = {onb:true, cls:S?.cls||'a X-a B', start:dkey(start), base:S?.base||{know:2,save:2,budget:2}, ex, zero, quiz:null, off:S?.off||0, order:S?.order, scores:S?.scores};
+  S = {onb:true, cls:S?.cls||'a X-a B', start:dkey(start), base:S?.base||{know:2,save:2,budget:2}, ex, zero, quiz:null, off:S?.off||0, order:S?.order, scores:S?.scores, sim:S?.sim};
   save(); tab='home'; render(); scrollTo(0,0); toast('Date demo: ziua 18');
 }
 
