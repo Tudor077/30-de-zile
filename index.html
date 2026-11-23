@@ -93,11 +93,13 @@ nav.tabs .add{width:58px;height:58px;border-radius:20px;background:var(--blue);c
 .stat .l{font-size:12px;color:var(--mute);font-weight:600}
 .lb .r{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
 .lb .r:first-of-type{border-top:0}
+.lb .r,#lbTitle{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.lb .r{transition:transform .15s}
+.lb .r.drag{transition:none;position:relative;z-index:2;background:#fff;box-shadow:0 6px 18px rgba(16,24,40,.16)}
 .lb .pos{width:28px;height:28px;border-radius:9px;background:var(--bg);display:grid;place-items:center;font-weight:800;font-size:14px}
 .lb .r.me{background:var(--sky2);margin:0 -16px;padding:11px 16px}
 .lb .r .nm{flex:1;font-weight:700}
 .lb .r .sc{font-weight:800;color:var(--blue)}
-.demo{font-size:11px;font-weight:800;color:var(--warn);background:#fff6e5;padding:3px 8px;border-radius:99px}
 .q{font-size:17px;font-weight:700;margin:6px 0 14px;line-height:1.35}
 .qbox{background:var(--bg);border-radius:16px;padding:14px;font-size:15px;line-height:1.45;margin-bottom:14px;border-left:4px solid var(--blue)}
 .fb{border-radius:14px;padding:12px 14px;margin:12px 0;font-size:14px;line-height:1.45}
@@ -280,18 +282,28 @@ function chal(){
   }).join('');
 }
 
+const RIVALS = [{id:'r0',n:'a XI-a B',s:91},{id:'r1',n:'a X-a A',s:87},{id:'r2',n:'a IX-a C',s:74},{id:'r3',n:'a XII-a A',s:68},{id:'r4',n:'a X-a C',s:61}];
+function ranking(mine){
+  const all = [...RIVALS.map(r=>({...r})), {id:'me', n:S.cls, s:mine, me:true}];
+  if(!S.order) return all.sort((a,b)=>b.s-a.s);
+  const rows = S.order.map(id=>all.find(r=>r.id===id)), m = rows.findIndex(r=>r.me);
+  // rivals take the scores in order, kept above or below the user's real score
+  let k=0;
+  rows.forEach((r,i)=>{ if(r.me) return; const s=RIVALS[k++].s;
+    r.s = i<m ? Math.min(100, Math.max(s, mine+m-i)) : Math.max(0, Math.min(s, mine+m-i)); });
+  return rows;
+}
+let panel=false, lbTaps=0, lbLast=0, drag=null, hold=null;
 function lb(){
   const mine = Math.round(loggedDays().size/dayNum()*100);
-  const rows = [
-    {n:'a XI-a B', s:91},{n:'a X-a A', s:87},{n:S.cls, s:mine, me:true},{n:'a IX-a C', s:74},{n:'a XII-a A', s:68},{n:'a X-a C', s:61}
-  ].sort((a,b)=>b.s-a.s);
+  const rows = ranking(mine);
   return `<div class="card lb">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">Clasamentul claselor</h3><span class="demo">DATE DEMO</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 id="lbTitle" style="margin:0">Clasamentul claselor</h3></div>
     <p class="muted" style="margin:0 0 10px">Câștigă clasa care notează cel mai constant, nu cea care cheltuie cel mai puțin.</p>
-    ${rows.map((r,i)=>`<div class="r ${r.me?'me':''}"><div class="pos">${i+1}</div><div class="nm">${r.n}${r.me?' (tu)':''}</div><div class="sc">${r.s}%</div></div>`).join('')}
+    ${rows.map((r,i)=>`<div class="r ${r.me?'me':''}" data-row="${r.id}"><div class="pos">${i+1}</div><div class="nm">${r.n}${r.me?' (tu)':''}</div><div class="sc">${r.s}%</div></div>`).join('')}
   </div>
   <div class="card"><div class="k">Premiile săptămânii</div><p style="margin:8px 0 0">Clasa de pe locul 1 la final de săptămână câștigă premiul săptămânal. Clasamentul final se anunță la gala din ziua 30.</p></div>
-  <div class="card">
+  <div class="card ${panel?'':'hide'}">
     <div class="k">Pentru prezentare</div>
     <div class="grid2" style="margin-top:10px">
       <button class="btn line" data-act="demo">Încarcă date demo</button>
@@ -351,6 +363,15 @@ function bindPage(){
     ev.stopPropagation(); const ts=+b.dataset.del;
     S.ex = S.ex.filter(e=>e.ts!==ts); armed=null; save(); render(); toast('Cheltuială ștearsă');
   });
+  const lt=$('#lbTitle'); if(lt) lt.onclick=()=>{
+    const now=Date.now(); lbTaps = now-lbLast<500 ? lbTaps+1 : 1; lbLast=now;
+    if(lbTaps>=3){ lbTaps=0; panel=!panel; render(); }
+  };
+  document.querySelectorAll('[data-row]').forEach(el=>{ el.onpointerdown=ev=>{
+    if(drag || ev.button) return;
+    cancelHold(); const y=ev.clientY, id=ev.pointerId;
+    hold = {t:setTimeout(()=>startDrag(el,y,id),400), y, id};
+  }; el.oncontextmenu=ev=>ev.preventDefault(); });
   const dl=$('#dayLbl'); if(dl) dl.onclick=()=>{
     const now=Date.now(); skipTaps = now-skipLast<500 ? skipTaps+1 : 1; skipLast=now;
     if(skipTaps<3) return; skipTaps=0;
@@ -360,12 +381,37 @@ function bindPage(){
   };
 }
 let skipTaps=0, skipLast=0;
+function cancelHold(){ if(hold) clearTimeout(hold.t); hold=null; }
+function startDrag(el,y,id){
+  hold=null; if(!el.isConnected) return;
+  const els=[...document.querySelectorAll('[data-row]')], from=els.indexOf(el);
+  drag={els, el, from, to:from, y, id, mid:els.map(r=>{const b=r.getBoundingClientRect(); return b.top+b.height/2;}), h:el.offsetHeight};
+  el.classList.add('drag'); if(navigator.vibrate) navigator.vibrate(15);
+}
+function endDrag(keep){
+  cancelHold(); if(!drag) return;
+  const {els,from,to}=drag; drag=null;
+  if(keep && to!==from){ const o=els.map(r=>r.dataset.row); o.splice(to,0,o.splice(from,1)[0]); S.order=o; save(); }
+  render();
+}
+document.addEventListener('pointermove', ev=>{
+  if(hold && ev.pointerId===hold.id && Math.abs(ev.clientY-hold.y)>8) cancelHold();
+  if(!drag || ev.pointerId!==drag.id) return;
+  const {els,el,from,mid,h}=drag, c=mid[from]+ev.clientY-drag.y;
+  el.style.transform=`translateY(${ev.clientY-drag.y}px)`;
+  drag.to=mid.filter((m,i)=>i!==from && (i<from ? m<c : m<=c)).length;
+  els.forEach((r,i)=>{ if(i===from) return;
+    r.style.transform = i>from && i<=drag.to ? `translateY(${-h}px)` : i<from && i>=drag.to ? `translateY(${h}px)` : ''; });
+});
+document.addEventListener('pointerup', ev=>{ const p=drag||hold; if(p && ev.pointerId===p.id) endDrag(true); });
+document.addEventListener('pointercancel', ev=>{ const p=drag||hold; if(p && ev.pointerId===p.id) endDrag(false); });
+document.addEventListener('touchmove', ev=>{ if(drag) ev.preventDefault(); }, {passive:false});
 function act(a){
   if(a==='add') openAdd();
   if(a==='zero'){ const t=dkey(today()); if(!S.zero.includes(t)) S.zero.push(t); save(); render(); toast('Zi fără cheltuieli notată ✓'); }
   if(a==='quiz'){ quizState={i:0, score:0, pick:null}; openQuiz(); }
   if(a==='demo') loadDemo();
-  if(a==='reset'){ if(confirmInline()) { S=null; ob={step:0,ans:{},cls:''}; try{localStorage.removeItem(KEY);}catch(e){} tab='home'; render(); } }
+  if(a==='reset'){ if(confirmInline()) { S=null; panel=false; ob={step:0,ans:{},cls:''}; try{localStorage.removeItem(KEY);}catch(e){} tab='home'; render(); } }
 }
 let resetArm=0;
 function confirmInline(){ if(Date.now()-resetArm<2500) return true; resetArm=Date.now(); toast('Apasă din nou ca să ștergi tot'); return false; }
@@ -450,7 +496,7 @@ function loadDemo(){
   ];
   const ex = D.map(([d,a,c,note,reg],k)=>{ const dt=new Date(start); dt.setDate(dt.getDate()+d-1); return {a,c,note,r:!!reg,d:dkey(dt),ts:dt.getTime()+k*1000}; });
   const zero = [10,12].map(d=>{ const dt=new Date(start); dt.setDate(dt.getDate()+d-1); return dkey(dt); });
-  S = {onb:true, cls:S?.cls||'a X-a B', start:dkey(start), base:S?.base||{know:2,save:2,budget:2}, ex, zero, quiz:null, off:S?.off||0};
+  S = {onb:true, cls:S?.cls||'a X-a B', start:dkey(start), base:S?.base||{know:2,save:2,budget:2}, ex, zero, quiz:null, off:S?.off||0, order:S?.order};
   save(); tab='home'; render(); scrollTo(0,0); toast('Date demo: ziua 18');
 }
 
