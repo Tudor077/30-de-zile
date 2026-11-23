@@ -94,7 +94,9 @@ nav.tabs .add{width:58px;height:58px;border-radius:20px;background:var(--blue);c
 .lb .r{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
 .lb .r:first-of-type{border-top:0}
 .lb .r,#lbTitle{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.lb .r{transition:transform .15s}
+.lb .r{transition:transform .15s;touch-action:manipulation}
+.lb .sc{padding:6px 0 6px 18px}
+.lb .sc input{width:58px;padding:2px 6px;font-weight:800;font-size:16px;color:var(--blue);text-align:right;border:1.5px solid var(--blue);border-radius:8px;user-select:text;-webkit-user-select:text}
 .lb .r.drag{transition:none;position:relative;z-index:2;background:#fff;box-shadow:0 6px 18px rgba(16,24,40,.16)}
 .lb .pos{width:28px;height:28px;border-radius:9px;background:var(--bg);display:grid;place-items:center;font-weight:800;font-size:14px}
 .lb .r.me{background:var(--sky2);margin:0 -16px;padding:11px 16px}
@@ -284,15 +286,38 @@ function chal(){
 
 const RIVALS = [{id:'r0',n:'a XI-a B',s:91},{id:'r1',n:'a X-a A',s:87},{id:'r2',n:'a IX-a C',s:74},{id:'r3',n:'a XII-a A',s:68},{id:'r4',n:'a X-a C',s:61}];
 function ranking(mine){
-  const all = [...RIVALS.map(r=>({...r})), {id:'me', n:S.cls, s:mine, me:true}];
+  const all = [...RIVALS, {id:'me', n:S.cls, s:mine, me:true}].map(r=>({...r, s:S.scores?.[r.id] ?? r.s}));
+  mine = all.find(r=>r.me).s;
   if(!S.order) return all.sort((a,b)=>b.s-a.s);
   const rows = S.order.map(id=>all.find(r=>r.id===id)), m = rows.findIndex(r=>r.me);
+  const vals = all.filter(r=>!r.me).map(r=>r.s).sort((a,b)=>b-a);
   // rivals take the scores in order, kept above or below the user's real score
   let k=0;
-  rows.forEach((r,i)=>{ if(r.me) return; const s=RIVALS[k++].s;
+  rows.forEach((r,i)=>{ if(r.me) return; const s=vals[k++];
     r.s = i<m ? Math.min(100, Math.max(s, mine+m-i)) : Math.max(0, Math.min(s, mine+m-i)); });
   return rows;
 }
+function editScore(el,id){
+  const old=el.textContent; let done=false;
+  el.innerHTML='<input inputmode="numeric" maxlength="3">';
+  const inp=el.firstChild; inp.value=parseInt(old);
+  inp.onpointerdown=inp.onclick=ev=>ev.stopPropagation();
+  const finish=ok=>{
+    if(done) return; done=true;
+    const raw=inp.value.trim(), v=Math.min(100,parseInt(raw));
+    if(ok && raw!==String(parseInt(old)) && (raw==='' || /^[0-9]+$/.test(raw))){
+      const sc={...S.scores};
+      ranking(Math.round(loggedDays().size/dayNum()*100)).forEach(r=>{ if(!r.me) sc[r.id]=r.s; });
+      if(raw==='') delete sc[id]; else sc[id]=v;
+      S.scores=sc; S.order=null; save();
+    }
+    render();
+  };
+  inp.onblur=()=>finish(true);
+  inp.onkeydown=ev=>{ if(ev.key==='Enter') inp.blur(); if(ev.key==='Escape') finish(false); };
+  inp.focus(); inp.select();
+}
+let scTap=null;
 let panel=false, lbTaps=0, lbLast=0, drag=null, hold=null;
 function lb(){
   const mine = Math.round(loggedDays().size/dayNum()*100);
@@ -372,6 +397,10 @@ function bindPage(){
     cancelHold(); const y=ev.clientY, id=ev.pointerId;
     hold = {t:setTimeout(()=>startDrag(el,y,id),400), y, id};
   }; el.oncontextmenu=ev=>ev.preventDefault(); });
+  document.querySelectorAll('[data-row] .sc').forEach(el=>el.onclick=()=>{
+    const id=el.parentNode.dataset.row, now=Date.now();
+    if(scTap && scTap.id===id && now-scTap.t<450){ scTap=null; cancelHold(); editScore(el,id); } else scTap={id,t:now};
+  });
   const dl=$('#dayLbl'); if(dl) dl.onclick=()=>{
     const now=Date.now(); skipTaps = now-skipLast<500 ? skipTaps+1 : 1; skipLast=now;
     if(skipTaps<3) return; skipTaps=0;
@@ -496,7 +525,7 @@ function loadDemo(){
   ];
   const ex = D.map(([d,a,c,note,reg],k)=>{ const dt=new Date(start); dt.setDate(dt.getDate()+d-1); return {a,c,note,r:!!reg,d:dkey(dt),ts:dt.getTime()+k*1000}; });
   const zero = [10,12].map(d=>{ const dt=new Date(start); dt.setDate(dt.getDate()+d-1); return dkey(dt); });
-  S = {onb:true, cls:S?.cls||'a X-a B', start:dkey(start), base:S?.base||{know:2,save:2,budget:2}, ex, zero, quiz:null, off:S?.off||0, order:S?.order};
+  S = {onb:true, cls:S?.cls||'a X-a B', start:dkey(start), base:S?.base||{know:2,save:2,budget:2}, ex, zero, quiz:null, off:S?.off||0, order:S?.order, scores:S?.scores};
   save(); tab='home'; render(); scrollTo(0,0); toast('Date demo: ziua 18');
 }
 
