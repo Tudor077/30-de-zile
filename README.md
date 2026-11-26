@@ -16,7 +16,20 @@ O provocare de 30 de zile, direct pe telefon:
 
 ## Cum o încerci
 Deschide linkul pe telefon. Din meniul browserului alege „Adaugă pe ecranul de pornire” și aplicația se deschide pe tot ecranul.
-Pentru o demonstrație rapidă: tab-ul **Clase** → **Încarcă date demo**.
+Pentru o demonstrație rapidă: tab-ul **Clase** → atinge de 3 ori titlul *Clasamentul claselor* → **Încarcă date demo**.
+
+## Comenzi secrete
+Gesturi ascunse, pentru prezentare:
+
+| Gest | Ce face |
+|---|---|
+| 3 atingeri pe *Clasamentul claselor* (tab-ul **Clase**) | arată/ascunde panoul de prezentare: **Încarcă date demo** și **Ia-o de la capăt** |
+| 2 atingeri pe numele clasei, sus în dreapta | simulează o zi: trece la ziua următoare, adaugă cheltuieli și clasa urcă treptat în clasament |
+| 3 atingeri pe *Ziua X din 30* | sare la ziua următoare |
+| Ții apăsat pe un rând din clasament și tragi | muți clasa pe altă poziție |
+| 2 atingeri pe un procent din clasament | îl modifici (lasă gol ca să revină la valoarea inițială) |
+
+**Ia-o de la capăt** șterge toate datele și trebuie apăsat de două ori.
 
 ## Date și confidențialitate
 Nu există conturi și nici server. Datele rămân doar pe telefonul fiecărui utilizator. În prototip, clasamentul folosește date demonstrative.
