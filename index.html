@@ -202,14 +202,14 @@ const CHAL = [
   {w:1, t:'Fotografia', d:'Doar notezi tot ce cheltui. Nu schimbi nimic. Vrem să vezi cum arată o săptămână normală.', goal:'Notează în 5 din 7 zile.'},
   {w:2, t:'Ziua zero', d:'Alege o zi din săptămâna asta în care nu cheltui niciun leu. Apasă „Azi n-am cheltuit nimic”.', goal:'O zi cu 0 lei.'},
   {w:3, t:'Vânătoarea', d:'Găsește un abonament, un joc sau un obicei pe care dai bani fără să-l folosești cu adevărat.', goal:'Marchează o cheltuială ca „regretată” și scrie de ce.'},
-  {w:4, t:'Țeapa', d:'Cinci mesaje reale de pe telefon. Care e țeapă și care nu? Fără Google.', goal:'Joacă testul și ia 4 din 5.', quiz:true},
+  {w:4, t:'Fraude online', d:'Cinci mesaje reale de pe telefon. Care e fraudă online și care nu? Fără Google.', goal:'Joacă testul și ia 4 din 5.', quiz:true},
 ];
 const QUIZ = [
-  {m:'📦 „Felicitări! Coletul tău nu a putut fi livrat. Plătește 4,99 lei taxă de livrare aici: posta-ro-colet.info”', a:true, x:'Țeapă. Firmele de curierat nu cer plata prin linkuri din SMS, iar adresa nu e site-ul oficial. Scopul e să-ți ia datele cardului.'},
-  {m:'📈 „Investește 500 de lei azi și primești 5.000 în 7 zile. Garantat! Doar 3 locuri rămase.”', a:true, x:'Țeapă. Randament garantat, foarte mare, foarte rapid și presiune de timp: sunt exact semnele unei scheme.'},
+  {m:'📦 „Felicitări! Coletul tău nu a putut fi livrat. Plătește 4,99 lei taxă de livrare aici: posta-ro-colet.info”', a:true, x:'Fraudă online. Firmele de curierat nu cer plata prin linkuri din SMS, iar adresa nu e site-ul oficial. Scopul e să-ți ia datele cardului.'},
+  {m:'📈 „Investește 500 de lei azi și primești 5.000 în 7 zile. Garantat! Doar 3 locuri rămase.”', a:true, x:'Fraudă online. Randament garantat, foarte mare, foarte rapid și presiune de timp: sunt exact semnele unei scheme.'},
   {m:'🏦 „Depozit la termen, 12 luni, dobândă 6% pe an. Suma minimă 500 de lei.”', a:false, x:'Real. 6% pe an e o dobândă obișnuită la depozitele în lei. Câștig mic, dar sigur.'},
-  {m:'🛒 Pe OLX: „Vreau produsul! Ți-am trimis banii, apasă pe link și introdu datele cardului ca să-i primești.”', a:true, x:'Țeapă. Ca să primești bani nu trebuie să introduci niciodată datele cardului. E una dintre cele mai frecvente țepe din România.'},
-  {m:'🔐 „Banca ta nu îți va cere niciodată codul PIN sau parola prin telefon, SMS sau e-mail.”', a:false, x:'Real. Este un avertisment corect pe care îl trimit băncile. Dacă cineva îți cere PIN-ul, e țeapă.'},
+  {m:'🛒 Pe OLX: „Vreau produsul! Ți-am trimis banii, apasă pe link și introdu datele cardului ca să-i primești.”', a:true, x:'Fraudă online. Ca să primești bani nu trebuie să introduci niciodată datele cardului. E una dintre cele mai frecvente fraude online din România.'},
+  {m:'🔐 „Banca ta nu îți va cere niciodată codul PIN sau parola prin telefon, SMS sau e-mail.”', a:false, x:'Real. Este un avertisment corect pe care îl trimit băncile. Dacă cineva îți cere PIN-ul, e fraudă online.'},
 ];
 const BASE_Q = [
   {k:'know', q:'Știi exact cât ai cheltuit luna trecută?', o:['Da, destul de exact','Aproximativ','Habar n-am']},
@@ -600,9 +600,9 @@ function drawQuiz(){
   if(st.i>=QUIZ.length){
     S.quiz=st.score; save();
     $('#pane').innerHTML = `<div class="center" style="padding:10px 0">
-      <div class="k">Testul țepei</div>
+      <div class="k">Testul fraudelor online</div>
       <div class="amt">${st.score}/5</div>
-      <p style="font-weight:700;margin:4px 0 16px">${st.score>=4?'Greu de păcălit. Provocarea e bifată.':'Mai încearcă. Țepele sunt făcute să pară reale.'}</p>
+      <p style="font-weight:700;margin:4px 0 16px">${st.score>=4?'Greu de păcălit. Provocarea e bifată.':'Mai încearcă. Fraudele online sunt făcute să pară reale.'}</p>
       <button class="btn" data-done>Gata</button></div>`;
     $('#pane').querySelector('[data-done]').onclick=()=>{ closeSheet(); render(); };
     return;
@@ -610,9 +610,9 @@ function drawQuiz(){
   const q=QUIZ[st.i];
   $('#pane').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center"><span class="k">Mesajul ${st.i+1} din 5</span><button data-x style="font-size:22px;color:var(--mute);padding:4px 8px">✕</button></div>
-    <div class="q">Țeapă sau real?</div>
+    <div class="q">Fraudă online sau real?</div>
     <div class="qbox">${q.m}</div>
-    ${st.pick===null ? `<div class="grid2"><button class="btn" style="background:var(--bad)" data-p="1">Țeapă</button><button class="btn" style="background:var(--good)" data-p="0">Real</button></div>`
+    ${st.pick===null ? `<div class="grid2"><button class="btn" style="background:var(--bad)" data-p="1">Fraudă online</button><button class="btn" style="background:var(--good)" data-p="0">Real</button></div>`
     : `<div class="fb ${(st.pick===q.a)?'ok':'no'}"><b>${st.pick===q.a?'Corect. ':'Nu chiar. '}</b>${q.x}</div><button class="btn" data-n>${st.i<4?'Următorul':'Vezi rezultatul'}</button>`}
   `;
   const p=$('#pane');
